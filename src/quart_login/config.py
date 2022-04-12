@@ -34,7 +34,7 @@ ID_ATTRIBUTE = "get_id"
 #: Default name of the auth header (``Authorization``)
 AUTH_HEADER_NAME = "Authorization"
 
-#: A set of session keys that are populated by Flask-Login. Use this set to
+#: A set of session keys that are populated by Quart-Login. Use this set to
 #: purge keys safely and accurately.
 SESSION_KEYS = {
     "_user_id",
