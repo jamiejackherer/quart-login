@@ -1886,10 +1886,6 @@ class CustomTestClientTestCase(unittest.IsolatedAsyncioTestCase):
         self.app.config["LOGIN_DISABLED"] = False
         self.app.test_client_class = QuartLoginClient
 
-        @self.app.route("/")
-        async def index():
-            return "Welcome!"
-
         @self.app.route("/username")
         async def username():
             if current_user.is_authenticated:
@@ -1899,10 +1895,6 @@ class CustomTestClientTestCase(unittest.IsolatedAsyncioTestCase):
         @self.app.route("/is-fresh")
         async def is_fresh():
             return str(login_fresh())
-
-        @self.app.route("/login-notch-remember")
-        async def login_notch_remember():
-            return str(login_user(notch, remember=True))
 
         @self.login_manager.user_loader
         def load_user(user_id):
@@ -1943,9 +1935,52 @@ class CustomTestClientTestCase(unittest.IsolatedAsyncioTestCase):
             self.assertEqual("False", (await is_fresh.data).decode("utf-8"))
 
     @pytest.mark.asyncio
-    async def test_not_fresh_not_modified(self):
+    async def test_session_protection_modes(self):
+        # Disabled
+        self.app.config["SESSION_PROTECTION"] = None
+        self.app.test_client_class = QuartLoginClient
+        async with self.app.test_client() as c:
+            await c.update_session_transaction(user=notch, fresh_login=False)
+            username = await c.get("/username")
+            self.assertEqual("Notch", (await username.data).decode("utf-8"))
+            is_fresh = await c.get("/is-fresh")
+            self.assertEqual("False", (await is_fresh.data).decode("utf-8"))
+
+        async with self.app.test_client() as c:
+            await c.update_session_transaction(user=notch, fresh_login=True)
+            username = await c.get("/username")
+            self.assertEqual("Notch", (await username.data).decode("utf-8"))
+            is_fresh = await c.get("/is-fresh")
+            self.assertEqual("True", (await is_fresh.data).decode("utf-8"))
+
+        # Enabled with mode: basic
         self.app.config["SESSION_PROTECTION"] = "basic"
-        c = self.app.test_client()
-        await c.update_session_transaction(user=steve, fresh_login=False)
-        r = await c.get("/username")
-        assert "Set-Cookie" not in r.headers
+        async with self.app.test_client() as c:
+            await c.update_session_transaction(user=notch, fresh_login=False)
+            username = await c.get("/username")
+            self.assertEqual("Notch", (await username.data).decode("utf-8"))
+            is_fresh = await c.get("/is-fresh")
+            self.assertEqual("False", (await is_fresh.data).decode("utf-8"))
+
+        async with self.app.test_client() as c:
+            await c.update_session_transaction(user=notch, fresh_login=True)
+            username = await c.get("/username")
+            self.assertEqual("Notch", (await username.data).decode("utf-8"))
+            is_fresh = await c.get("/is-fresh")
+            self.assertEqual("False", (await is_fresh.data).decode("utf-8"))
+
+        # Enabled with mode: strong
+        self.app.config["SESSION_PROTECTION"] = "strong"
+        async with self.app.test_client() as c:
+            await c.update_session_transaction(user=notch, fresh_login=False)
+            username = await c.get("/username")
+            self.assertEqual("Anonymous", (await username.data).decode("utf-8"))
+            is_fresh = await c.get("/is-fresh")
+            self.assertEqual("False", (await is_fresh.data).decode("utf-8"))
+
+        async with self.app.test_client() as c:
+            await c.update_session_transaction(user=notch, fresh_login=True)
+            username = await c.get("/username")
+            self.assertEqual("Anonymous", (await username.data).decode("utf-8"))
+            is_fresh = await c.get("/is-fresh")
+            self.assertEqual("False", (await is_fresh.data).decode("utf-8"))

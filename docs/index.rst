@@ -3,7 +3,7 @@ Quart-Login
 ===========
 .. currentmodule:: quart_login
 
-Quart-Login provides user session management for Flask. It handles the common
+Quart-Login provides user session management for Quart. It handles the common
 tasks of logging in, logging out, and remembering your users' sessions over
 extended periods of time.
 
@@ -14,7 +14,7 @@ It will:
 - Let you restrict views to logged-in (or logged-out) users.
 - Handle the normally-tricky "remember me" functionality.
 - Help protect your users' sessions from being stolen by cookie thieves.
-- Possibly integrate with Flask-Principal or other authorization extensions
+- Possibly integrate with Quart-Principal or other authorization extensions
   later on.
 
 However, it does not:
@@ -58,8 +58,8 @@ login with::
 
 
 By default, Quart-Login uses sessions for authentication. This means you must
-set the secret key on your application, otherwise Flask will give you
-an error message telling you to do so. See the `Flask documentation on sessions`_
+set the secret key on your application, otherwise Quart will give you
+an error message telling you to do so. See the `Quart documentation on sessions`_
 to see how to set a secret key.
 
 *Warning:* Make SURE to use the given command in the
@@ -148,7 +148,7 @@ function.
 
 *Warning:* You MUST validate the value of the `next` parameter. If you do not,
 your application will be vulnerable to open redirects. For an example
-implementation of `is_safe_url` see `this Flask Snippet`_.
+implementation of `is_safe_url` see `this Quart Snippet`_.
 
 It's that simple. You can then access the logged-in user with the
 `current_user` proxy, which is available in every template::
@@ -210,7 +210,7 @@ If you would like to customize the process further, decorate a function with
         # do stuff
         return a_response
 
-For example: You are using Flask Login with Flask Restful.
+For example: You are using Quart Login with Quart Restful.
 In your API (blueprint named as api) you don't wanna redirect to login page but return Unauthorized status code .::
 
     from quart import redirect, url_for, request
@@ -254,7 +254,7 @@ Sometimes you want to login users without using cookies, such as using header
 values or an api key passed as a query argument. In these cases, you should use
 the `~LoginManager.request_loader` callback. This callback should behave the
 same as your `~LoginManager.user_loader` callback, except that it accepts the
-Flask request instead of a user_id.
+Quart request instead of a user_id.
 
 For example, to support login from both a url argument and from Basic Auth
 using the `Authorization` header::
@@ -304,7 +304,7 @@ factory function) that creates anonymous users to the `LoginManager` with::
 
 Remember Me
 ===========
-By default, when the user closes their browser the Flask Session is deleted
+By default, when the user closes their browser the Quart Session is deleted
 and the user is logged out. "Remember Me" prevents the user from accidentally
 being logged out when they close their browser. This does **NOT** mean
 remembering or pre-filling the user's username or password in a login form
@@ -405,7 +405,7 @@ The details of the cookie can be customized in the application settings.
                                        **Default:** `True`
 `REMEMBER_COOKIE_REFRESH_EACH_REQUEST` If set to `True` the cookie is refreshed on every
                                        request, which bumps the lifetime. Works like
-                                       Flask's `SESSION_REFRESH_EACH_REQUEST`.
+                                       Quart's `SESSION_REFRESH_EACH_REQUEST`.
                                        **Default:** `False`
 `REMEMBER_COOKIE_SAMESITE`             Restricts the "Remember Me" cookie to first-party
                                        or same-site context.
@@ -453,7 +453,7 @@ deleted.
 
 Disabling Session Cookie for APIs
 =================================
-When authenticating to APIs, you might want to disable setting the Flask
+When authenticating to APIs, you might want to disable setting the Quart
 Session cookie. To do this, use a custom session interface that skips saving
 the session depending on a flag you set on the request. For example::
 
@@ -480,33 +480,33 @@ the session depending on a flag you set on the request. For example::
     def user_loaded_from_request(self, user=None):
         g.login_via_request = True
 
-This prevents setting the Flask Session cookie whenever the user authenticated
+This prevents setting the Quart Session cookie whenever the user authenticated
 using your `~LoginManager.request_loader`.
 
 Automated Testing
 =================
 To make it easier for you to write automated tests, Quart-Login provides a
-custom test client class that will set the user's login cookie for you.
-To use this custom test client class, assign it to the
-:attr:`test_client_class <quart.Flask.test_client_class>` attribute
+simple, custom test client class that will set the user's login cookie for you:
+`~QuartLoginClient`. To use this custom test client class, assign it to the
+:attr:`test_client_class <quart.Quart.test_client_class>` attribute
 on your application object, like this::
 
-    from quart_login import FlaskLoginClient
+    from quart_login import QuartLoginClient
 
-    app.test_client_class = FlaskLoginClient
+    app.test_client_class = QuartLoginClient
 
-Next, use the :meth:`app.test_client() <quart.Flask.test_client>` method
+Next, use the :meth:`app.test_client() <quart.Quart.test_client>` method
 to make a test client, as you normally do. However, now you can pass a
 user object to this method, and your client will be automatically
 logged in with this user!
 
 .. code-block:: python
 
-    def test_simple(self):
+    def test_request_with_logged_in_user():
         user = User.query.get(1)
         with app.test_client(user=user) as client:
-            # this request has user 1 already logged in!
-            resp = client.get("/")
+            # This request has user 1 already logged in!
+            client.get("/")
 
 You may also pass ``fresh_login`` (``bool``, defaults to ``True``) to mark the
 current login as fresh or non-fresh.
@@ -514,6 +514,12 @@ current login as fresh or non-fresh.
 Note that you must use keyword arguments, not positional arguments. E.g.
 ``test_client(user=user)`` will work, but ``test_client(user)``
 will not.
+
+Due to the way this custom test client class is implemented, you may have to
+disable **session protection** to have your tests work properly. If session
+protection is enabled, login sessions will be marked non-fresh in `basic` mode
+or outright rejected in `strong` mode when performing requests with the test
+client.
 
 Localization
 ============
@@ -626,12 +632,12 @@ Utilities
 ---------
 .. autofunction:: login_url
 
-.. autoclass:: FlaskLoginClient
+.. autoclass:: QuartLoginClient
 
 
 Signals
 -------
-See the `Flask documentation on signals`_ for information on how to use these
+See the `Quart documentation on signals`_ for information on how to use these
 signals in your code.
 
 .. data:: user_logged_in
@@ -667,6 +673,6 @@ signals in your code.
    the app.
 
 .. _source code: https://github.com/0000matteo0000/quart-login/tree/main/src/quart_login
-.. _Flask documentation on signals: http://flask.pocoo.org/docs/signals/
-.. _this Flask Snippet: https://web.archive.org/web/20120517003641/http://flask.pocoo.org/snippets/62/
-.. _Flask documentation on sessions: http://flask.pocoo.org/docs/quickstart/#sessions
+.. _Quart documentation on signals: http://flask.pocoo.org/docs/signals/
+.. _this Quart Snippet: https://web.archive.org/web/20120517003641/http://flask.pocoo.org/snippets/62/
+.. _Quart documentation on sessions: http://flask.pocoo.org/docs/quickstart/#sessions

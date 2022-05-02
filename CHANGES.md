@@ -1,7 +1,7 @@
 Quart-Login Changelog
 =====================
 
-Version ecd3b59339175e575ba598eb5c5fd3330e0ff73b
+Version bb254077ac98ad4bd0ca15f5b6818a3d8f8b5dd7
 -------------
 
-ported commit ecd3b59339175e575ba598eb5c5fd3330e0ff73b
+ported commit bb254077ac98ad4bd0ca15f5b6818a3d8f8b5dd7
