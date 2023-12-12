@@ -40,7 +40,6 @@ from .signals import (
     user_unauthorized,
 )
 from .utils import (
-    get_context,
     _create_identifier,
     _user_context_processor,
     decode_cookie,
