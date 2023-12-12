@@ -1,39 +1,26 @@
 import hmac
 from functools import wraps
 from hashlib import sha512
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
-from quart import current_app
-from quart.globals import request_ctx, websocket_ctx
-from quart import has_request_context
-from quart import request
-from quart import has_websocket_context
-from quart import websocket
-from quart import session
-from quart import url_for
+from quart import (
+    current_app,
+    g,
+    request,
+    websocket,
+    session,
+    url_for,
+    has_websocket_context,
+    has_request_context,
+)
 from werkzeug.local import LocalProxy
-from werkzeug.routing import parse_rule
-from werkzeug.urls import url_decode
-from werkzeug.urls import url_encode
 
-from .config import COOKIE_NAME
-from .config import EXEMPT_METHODS
-from .signals import user_logged_in
-from .signals import user_logged_out
-from .signals import user_login_confirmed
+from .config import COOKIE_NAME, EXEMPT_METHODS
+from .signals import user_logged_in, user_logged_out, user_login_confirmed
 
 #: A proxy for the current user. If no user is logged in, this will be an
 #: anonymous user
 current_user = LocalProxy(lambda: _get_user())
-
-
-def get_context():
-    if has_request_context():
-        return request
-    elif has_websocket_context():
-        return websocket
-    raise RuntimeError("Attempt to access request or websocket outside of a relevant context")
 
 
 def encode_cookie(payload, key=None):
@@ -84,13 +71,13 @@ def make_next_param(login_url, current_url):
     :param current_url: The URL to reduce.
     :type current_url: str
     """
-    l_url = urlparse(login_url)
-    c_url = urlparse(current_url)
+    l_url = urlsplit(login_url)
+    c_url = urlsplit(current_url)
 
     if (not l_url.scheme or l_url.scheme == c_url.scheme) and (
         not l_url.netloc or l_url.netloc == c_url.netloc
     ):
-        return urlunparse(("", "", c_url.path, c_url.params, c_url.query, ""))
+        return urlunsplit(("", "", c_url.path, c_url.query, ""))
     return current_url
 
 
@@ -104,23 +91,8 @@ def expand_login_view(login_view):
     """
     if login_view.startswith(("https://", "http://", "/")):
         return login_view
-    else:
 
-        context = get_context()
-
-        try:
-            url_rule = context.url_rule.subdomain or context.url_rule.host
-        except AttributeError:
-            url_rule = None
-        if context.view_args and url_rule:
-            args = {}
-            for _, _, key in parse_rule(url_rule):
-                if not key or key not in context.view_args:
-                    continue
-                args[key] = context.view_args[key]
-            return url_for(login_view, **args)
-        else:
-            return url_for(login_view)
+    return url_for(login_view)
 
 
 def login_url(login_view, next_url=None, next_field="next"):
@@ -128,11 +100,11 @@ def login_url(login_view, next_url=None, next_field="next"):
     Creates a URL for redirecting to a login page. If only `login_view` is
     provided, this will just return the URL for it. If `next_url` is provided,
     however, this will append a ``next=URL`` parameter to the query string
-    so that the login view can redirect back to that URL. Quart-Login's default
+    so that the login view can redirect back to that URL. Flask-Login's default
     unauthorized handler uses this function when redirecting to your login url.
+
     To force the host name used, set `FORCE_HOST_FOR_REDIRECTS` to a host. This
-    prevents from redirecting to external sites if request headers Host or
-    X-Forwarded-For are present.
+    prevents from redirecting to external sites if `SERVER_NAME` is not configured.
 
     :param login_view: The name of the login view. (Alternately, the actual
                        URL to the login view.)
@@ -148,14 +120,14 @@ def login_url(login_view, next_url=None, next_field="next"):
     if next_url is None:
         return base
 
-    parsed_result = urlparse(base)
-    md = url_decode(parsed_result.query)
+    parsed_result = urlsplit(base)
+    md = parse_qs(parsed_result.query, keep_blank_values=True)
     md[next_field] = make_next_param(base, next_url)
     netloc = current_app.config.get("FORCE_HOST_FOR_REDIRECTS") or parsed_result.netloc
     parsed_result = parsed_result._replace(
-        netloc=netloc, query=url_encode(md, sort=True)
+        netloc=netloc, query=urlencode(md, doseq=True)
     )
-    return urlunparse(parsed_result)
+    return urlunsplit(parsed_result)
 
 
 def login_fresh():
@@ -171,12 +143,9 @@ def login_remembered():
     """
     config = current_app.config
     cookie_name = config.get("REMEMBER_COOKIE_NAME", COOKIE_NAME)
-
-    context = get_context()
-
-    has_cookie = cookie_name in context.cookies and session.get("_remember") != "clear"
+    has_cookie = cookie_name in request.cookies and session.get("_remember") != "clear"
     if has_cookie:
-        cookie = context.cookies[cookie_name]
+        cookie = request.cookies[cookie_name]
         user_id = decode_cookie(cookie)
         return user_id is not None
     return False
@@ -251,10 +220,7 @@ def logout_user():
         session.pop("_id")
 
     cookie_name = current_app.config.get("REMEMBER_COOKIE_NAME", COOKIE_NAME)
-
-    context = get_context()
-
-    if cookie_name in context.cookies:
+    if cookie_name in request.cookies:
         session["_remember"] = "clear"
         if "_remember_seconds" in session:
             session.pop("_remember_seconds")
@@ -311,14 +277,15 @@ def login_required(func):
 
     @wraps(func)
     def decorated_view(*args, **kwargs):
-
-        context = get_context()
-
-        if context.method in EXEMPT_METHODS or current_app.config.get("LOGIN_DISABLED"):
+        if request.method in EXEMPT_METHODS or current_app.config.get("LOGIN_DISABLED"):
             pass
         elif not current_user.is_authenticated:
             return current_app.login_manager.unauthorized()
 
+        # flask 1.x compatibility
+        # current_app.ensure_sync is only available in Flask >= 2.0
+        if callable(getattr(current_app, "ensure_sync", None)):
+            return current_app.ensure_sync(func)(*args, **kwargs)
         return func(*args, **kwargs)
 
     return decorated_view
@@ -351,16 +318,17 @@ def fresh_login_required(func):
 
     @wraps(func)
     def decorated_view(*args, **kwargs):
-
-        context = get_context()
-
-        if context.method in EXEMPT_METHODS or current_app.config.get("LOGIN_DISABLED"):
+        if request.method in EXEMPT_METHODS or current_app.config.get("LOGIN_DISABLED"):
             pass
         elif not current_user.is_authenticated:
             return current_app.login_manager.unauthorized()
         elif not login_fresh():
             return current_app.login_manager.needs_refresh()
-        return func(*args, **kwargs)
+        try:
+            # current_app.ensure_sync available in Flask >= 2.0
+            return current_app.ensure_sync(func)(*args, **kwargs)
+        except AttributeError:  # pragma: no cover
+            return func(*args, **kwargs)
 
     return decorated_view
 
@@ -379,14 +347,12 @@ def set_login_view(login_view, blueprint=None):
 
     num_login_views = len(current_app.login_manager.blueprint_login_views)
     if blueprint is not None or num_login_views != 0:
-
         (current_app.login_manager.blueprint_login_views[blueprint.name]) = login_view
 
         if (
             current_app.login_manager.login_view is not None
             and None not in current_app.login_manager.blueprint_login_views
         ):
-
             (
                 current_app.login_manager.blueprint_login_views[None]
             ) = current_app.login_manager.login_view
@@ -398,14 +364,15 @@ def set_login_view(login_view, blueprint=None):
 
 def _get_user():
     if has_request_context():
-        if not hasattr(_request_context.top, "user"):
+        if "_login_user" not in g:
             current_app.login_manager._load_user()
-        return getattr(_request_context.top, "user", None)
+        return g._login_user
     elif has_websocket_context():
-        if not hasattr(_websocket_context.top, "user"):
+        if "_login_user" not in g:
             current_app.login_manager._load_user()
-        return getattr(_websocket_context.top, "user", None)
-    raise RuntimeError("Attempt to access current_user outside of a relevant context")
+        return g._login_user
+
+    return None
 
 
 def _cookie_digest(payload, key=None):
@@ -414,30 +381,9 @@ def _cookie_digest(payload, key=None):
     return hmac.new(key, payload.encode("utf-8"), sha512).hexdigest()
 
 
-def _get_remote_addr():
-
-    context = get_context()
-
-    address = context.headers.get("X-Forwarded-For", context.remote_addr)
-    if address is not None:
-        # An 'X-Forwarded-For' header includes a comma separated list of the
-        # addresses, the first address being the actual remote address.
-        address = address.encode("utf-8").split(b",")[0].strip()
-    return address
-
-
 def _create_identifier():
-
-    context = get_context()
-
-    user_agent = context.headers.get("User-Agent")
-    if user_agent is not None:
-        user_agent = user_agent.encode("utf-8")
-    base = f"{_get_remote_addr()}|{user_agent}"
-    if str is bytes:
-        base = str(base, "utf-8", errors="replace")  # pragma: no cover
     h = sha512()
-    h.update(base.encode("utf8"))
+    h.update(f"{request.remote_addr}|{request.user_agent.string}".encode())
     return h.hexdigest()
 
 

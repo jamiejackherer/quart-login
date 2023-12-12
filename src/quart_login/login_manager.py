@@ -120,16 +120,6 @@ class LoginManager:
         if app is not None:
             self.init_app(app, add_context_processor)
 
-    def setup_app(self, app, add_context_processor=True):  # pragma: no cover
-        """
-        This method has been deprecated. Please use
-        :meth:`LoginManager.init_app` instead.
-        """
-        warnings.warn(
-            "Warning setup_app is deprecated. Please use init_app.", DeprecationWarning
-        )
-        self.init_app(app, add_context_processor)
-
     def init_app(self, app, add_context_processor=True):
         """
         Configures an application. This registers an `after_request` call, and
@@ -178,10 +168,8 @@ class LoginManager:
         if self.unauthorized_callback:
             return self.unauthorized_callback()
 
-        context = get_context()
-
-        if context.blueprint in self.blueprint_login_views:
-            login_view = self.blueprint_login_views[context.blueprint]
+        if request.blueprint in self.blueprint_login_views:
+            login_view = self.blueprint_login_views[request.blueprint]
         else:
             login_view = self.login_view
 
@@ -201,10 +189,10 @@ class LoginManager:
         if config.get("USE_SESSION_FOR_NEXT", USE_SESSION_FOR_NEXT):
             login_url = expand_login_view(login_view)
             session["_id"] = self._session_identifier_generator()
-            session["next"] = make_next_param(login_url, context.url)
+            session["next"] = make_next_param(login_url, request.url)
             redirect_url = make_login_url(login_view)
         else:
-            redirect_url = make_login_url(login_view, next_url=context.url)
+            redirect_url = make_login_url(login_view, next_url=request.url)
 
         return redirect(redirect_url)
 
@@ -308,47 +296,25 @@ class LoginManager:
                     category=self.needs_refresh_message_category,
                 )
 
-        context = get_context()
-
         config = current_app.config
         if config.get("USE_SESSION_FOR_NEXT", USE_SESSION_FOR_NEXT):
             login_url = expand_login_view(self.refresh_view)
             session["_id"] = self._session_identifier_generator()
-            session["next"] = make_next_param(login_url, context.url)
+            session["next"] = make_next_param(login_url, request.url)
             redirect_url = make_login_url(self.refresh_view)
         else:
             login_url = self.refresh_view
-            redirect_url = make_login_url(login_url, next_url=context.url)
+            redirect_url = make_login_url(login_url, next_url=request.url)
 
         return redirect(redirect_url)
-
-    def header_loader(self, callback):
-        """
-        This function has been deprecated. Please use
-        :meth:`LoginManager.request_loader` instead.
-
-        This sets the callback for loading a user from a header value.
-        The function you set should take an authentication token and
-        return a user object, or `None` if the user does not exist.
-
-        :param callback: The callback for retrieving a user object.
-        :type callback: callable
-        """
-        print(
-            "LoginManager.header_loader is deprecated. Use"
-            " LoginManager.request_loader instead."
-        )
-        self._header_callback = callback
-        return callback
 
     def _update_request_context_with_user(self, user=None):
         """Store the given user as ctx.user."""
 
-        if has_request_context():
-            ctx = request_context.top
-        elif has_websocket_context():
-            ctx = websocket_context.top
-        ctx.user = self.anonymous_user() if user is None else user
+        if user is None:
+            user = self.anonymous_user()
+
+        g._login_user = user
 
     def _load_user(self):
         """Loads user from session or remember_me cookie as applicable"""
@@ -377,21 +343,14 @@ class LoginManager:
         if user is None:
             config = current_app.config
             cookie_name = config.get("REMEMBER_COOKIE_NAME", COOKIE_NAME)
-            header_name = config.get("AUTH_HEADER_NAME", AUTH_HEADER_NAME)
-
-            context = get_context()
-
             has_cookie = (
-                cookie_name in context.cookies and session.get("_remember") != "clear"
+                cookie_name in request.cookies and session.get("_remember") != "clear"
             )
             if has_cookie:
-                cookie = context.cookies[cookie_name]
+                cookie = request.cookies[cookie_name]
                 user = self._load_user_from_remember_cookie(cookie)
             elif self._request_callback:
-                user = self._load_user_from_request(context)
-            elif header_name in context.headers:
-                header = context.headers[header_name]
-                user = self._load_user_from_header(header)
+                user = self._load_user_from_request(request)
 
         return self._update_request_context_with_user(user)
 
@@ -434,15 +393,6 @@ class LoginManager:
             if user is not None:
                 app = current_app._get_current_object()
                 user_loaded_from_cookie.send(app, user=user)
-                return user
-        return None
-
-    def _load_user_from_header(self, header):
-        if self._header_callback:
-            user = self._header_callback(header)
-            if user is not None:
-                app = current_app._get_current_object()
-                user_loaded_from_header.send(app, user=user)
                 return user
         return None
 
@@ -495,7 +445,7 @@ class LoginManager:
             duration = timedelta(seconds=duration)
 
         try:
-            expires = datetime.utcnow() + duration
+            expires = datetime.now(timezone.utc) + duration
         except TypeError as e:
             raise Exception(
                 "REMEMBER_COOKIE_DURATION must be a datetime.timedelta,"
@@ -520,15 +470,3 @@ class LoginManager:
         domain = config.get("REMEMBER_COOKIE_DOMAIN")
         path = config.get("REMEMBER_COOKIE_PATH", "/")
         response.delete_cookie(cookie_name, domain=domain, path=path)
-
-    @property
-    def _login_disabled(self):
-        """Legacy property, use app.config['LOGIN_DISABLED'] instead."""
-        if has_app_context():
-            return current_app.config.get("LOGIN_DISABLED", False)
-        return False
-
-    @_login_disabled.setter
-    def _login_disabled(self, newvalue):
-        """Legacy property setter, use app.config['LOGIN_DISABLED'] instead."""
-        current_app.config["LOGIN_DISABLED"] = newvalue
