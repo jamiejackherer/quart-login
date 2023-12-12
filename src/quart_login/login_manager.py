@@ -11,7 +11,7 @@ from quart import (
     redirect,
     session,
 )
-from quart.globals import request_context, websocket_ctx
+from quart.globals import request_ctx, websocket_ctx
 
 import quart_flask_patch  # must be the first import to use flask extensions with quart
 from flask import flash

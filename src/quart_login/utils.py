@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from urllib.parse import urlunparse
 
 from quart import current_app
-from quart.globals import _request_context, _websocket_context
+from quart.globals import request_ctx, websocket_ctx
 from quart import has_request_context
 from quart import request
 from quart import has_websocket_context
