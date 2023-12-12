@@ -40,6 +40,8 @@ from .signals import (
     user_loaded_from_request,
     user_needs_refresh,
     user_unauthorized,
+)
+from .signals import (
     get_context,
     _create_identifier,
     _user_context_processor,
