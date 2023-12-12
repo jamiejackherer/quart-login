@@ -2,48 +2,53 @@ import warnings
 from datetime import datetime
 from datetime import timedelta
 
-from quart import _request_ctx_stack
-from quart import has_request_context
-from quart import _websocket_ctx_stack
-from quart import has_websocket_context
-from quart import abort
-from quart import current_app
-from quart import has_app_context
-from quart import redirect
-from quart import session
+from quart import (
+    has_request_context,
+    has_websocket_context,
+    has_app_context,
+    abort,
+    current_app,
+    redirect,
+    session,
+)
+from quart.globals import request_context, websocket_ctx
 
-import quart.flask_patch  # must be the first import to use flask extensions with quart
+import quart_flask_patch  # must be the first import to use flask extensions with quart
 from flask import flash
 
-from .config import AUTH_HEADER_NAME
-from .config import COOKIE_DURATION
-from .config import COOKIE_HTTPONLY
-from .config import COOKIE_NAME
-from .config import COOKIE_SAMESITE
-from .config import COOKIE_SECURE
-from .config import ID_ATTRIBUTE
-from .config import LOGIN_MESSAGE
-from .config import LOGIN_MESSAGE_CATEGORY
-from .config import REFRESH_MESSAGE
-from .config import REFRESH_MESSAGE_CATEGORY
-from .config import SESSION_KEYS
-from .config import USE_SESSION_FOR_NEXT
+from .config import (
+    AUTH_HEADER_NAME,
+    COOKIE_DURATION,
+    COOKIE_HTTPONLY,
+    COOKIE_NAME,
+    COOKIE_SAMESITE,
+    COOKIE_SECURE,
+    ID_ATTRIBUTE,
+    LOGIN_MESSAGE,
+    LOGIN_MESSAGE_CATEGORY,
+    REFRESH_MESSAGE,
+    REFRESH_MESSAGE_CATEGORY,
+    SESSION_KEYS,
+    USE_SESSION_FOR_NEXT,
+)
 from .mixins import AnonymousUserMixin
-from .signals import session_protected
-from .signals import user_accessed
-from .signals import user_loaded_from_cookie
-from .signals import user_loaded_from_header
-from .signals import user_loaded_from_request
-from .signals import user_needs_refresh
-from .signals import user_unauthorized
-from .utils import get_context
-from .utils import _create_identifier
-from .utils import _user_context_processor
-from .utils import decode_cookie
-from .utils import encode_cookie
-from .utils import expand_login_view
-from .utils import login_url as make_login_url
-from .utils import make_next_param
+from .signals import (
+    session_protected,
+    user_accessed,
+    user_loaded_from_cookie,
+    user_loaded_from_header,
+    user_loaded_from_request,
+    user_needs_refresh,
+    user_unauthorized,
+    get_context,
+    _create_identifier,
+    _user_context_processor,
+    decode_cookie,
+    encode_cookie,
+    expand_login_view,
+    login_url as make_login_url,
+    make_next_param,
+)
 
 
 class LoginManager:
@@ -338,9 +343,9 @@ class LoginManager:
         """Store the given user as ctx.user."""
 
         if has_request_context():
-            ctx = _request_ctx_stack.top
+            ctx = request_context.top
         elif has_websocket_context():
-            ctx = _websocket_ctx_stack.top
+            ctx = websocket_context.top
         ctx.user = self.anonymous_user() if user is None else user
 
     def _load_user(self):
