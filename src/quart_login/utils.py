@@ -5,10 +5,10 @@ from urllib.parse import urlparse
 from urllib.parse import urlunparse
 
 from quart import current_app
-from quart import _request_ctx_stack
+from quart.globals import _request_context
 from quart import has_request_context
 from quart import request
-from quart import _websocket_ctx_stack
+from quart.globals import _websocket_context
 from quart import has_websocket_context
 from quart import websocket
 from quart import session
@@ -399,13 +399,13 @@ def set_login_view(login_view, blueprint=None):
 
 def _get_user():
     if has_request_context():
-        if not hasattr(_request_ctx_stack.top, "user"):
+        if not hasattr(_request_context.top, "user"):
             current_app.login_manager._load_user()
-        return getattr(_request_ctx_stack.top, "user", None)
+        return getattr(_request_context.top, "user", None)
     elif has_websocket_context():
-        if not hasattr(_websocket_ctx_stack.top, "user"):
+        if not hasattr(_websocket_context.top, "user"):
             current_app.login_manager._load_user()
-        return getattr(_websocket_ctx_stack.top, "user", None)
+        return getattr(_websocket_context.top, "user", None)
     raise RuntimeError("Attempt to access current_user outside of a relevant context")
 
 
