@@ -41,7 +41,7 @@ from .signals import (
     user_needs_refresh,
     user_unauthorized,
 )
-from .signals import (
+from .utils import (
     get_context,
     _create_identifier,
     _user_context_processor,
