@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name="Quart-Login",
     install_requires=[
-        "Quart>=0.17.0",
+        "Quart>=0.19.0",
         "Flask>=1.0.4",
         "Werkzeug>=2.0.0",
     ],

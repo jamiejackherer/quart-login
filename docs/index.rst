@@ -35,7 +35,7 @@ Installation
 ============
 Install the extension with pip::
 
-    $ pip install git+https://github.com/0000matteo0000/quart-login.git
+    $ pip install git+https://github.com/jamiejackherer/quart-login.git
 
 
 Configuring your Application
@@ -672,7 +672,7 @@ signals in your code.
    marked non-fresh or deleted. It receives no additional arguments besides
    the app.
 
-.. _source code: https://github.com/0000matteo0000/quart-login/tree/main/src/quart_login
+.. _source code: https://github.com/jamiejackherer/quart-login/tree/main/src/quart_login
 .. _Quart documentation on signals: http://flask.pocoo.org/docs/signals/
 .. _this Quart Snippet: https://web.archive.org/web/20120517003641/http://flask.pocoo.org/snippets/62/
 .. _Quart documentation on sessions: http://flask.pocoo.org/docs/quickstart/#sessions
