@@ -17,7 +17,6 @@ import quart_flask_patch  # must be the first import to use flask extensions wit
 from flask import flash
 
 from .config import (
-    AUTH_HEADER_NAME,
     COOKIE_DURATION,
     COOKIE_HTTPONLY,
     COOKIE_NAME,
@@ -36,7 +35,6 @@ from .signals import (
     session_protected,
     user_accessed,
     user_loaded_from_cookie,
-    user_loaded_from_header,
     user_loaded_from_request,
     user_needs_refresh,
     user_unauthorized,
@@ -110,8 +108,6 @@ class LoginManager:
         self.id_attribute = ID_ATTRIBUTE
 
         self._user_callback = None
-
-        self._header_callback = None
 
         self._request_callback = None
 

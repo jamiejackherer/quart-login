@@ -31,7 +31,6 @@ from quart_login import session_protected
 from quart_login import set_login_view
 from quart_login import user_accessed
 from quart_login import user_loaded_from_cookie
-from quart_login import user_loaded_from_header
 from quart_login import user_loaded_from_request
 from quart_login import user_logged_in
 from quart_login import user_logged_out
@@ -39,16 +38,6 @@ from quart_login import user_login_confirmed
 from quart_login import user_needs_refresh
 from quart_login import user_unauthorized
 from quart_login import UserMixin
-from quart_login.__about__ import __author__
-from quart_login.__about__ import __author_email__
-from quart_login.__about__ import __copyright__
-from quart_login.__about__ import __description__
-from quart_login.__about__ import __license__
-from quart_login.__about__ import __maintainer__
-from quart_login.__about__ import __title__
-from quart_login.__about__ import __url__
-from quart_login.__about__ import __version__
-from quart_login.__about__ import __version_info__
 from quart_login.utils import _secret_key
 from quart_login.utils import _user_context_processor
 from quart.views import MethodView
@@ -328,16 +317,7 @@ class LoginTestCase(unittest.IsolatedAsyncioTestCase):
         def load_user(user_id):
             return USERS[int(user_id)]
 
-        @self.login_manager.header_loader
-        def load_user_from_header(header_value):
-            if header_value.startswith("Basic "):
-                header_value = header_value.replace("Basic ", "", 1)
-            try:
-                user_id = base64.b64decode(header_value)
-            except TypeError:
-                pass
-            return USERS.get(int(user_id))
-
+    
         @self.login_manager.request_loader
         def load_user_from_request(request):
             user_id = request.args.get("user_id")
@@ -420,27 +400,6 @@ class LoginTestCase(unittest.IsolatedAsyncioTestCase):
             login_user(creeper, force=True)
             self.assertEqual(current_user.name, "Creeper")
 
-    @pytest.mark.asyncio
-    async def test_login_user_with_header(self):
-        user_id = 2
-        user_name = USERS[user_id].name
-        self.login_manager._request_callback = None
-        async with self.app.test_client() as c:
-            decoded = base64.b64encode(str(user_id).encode()).decode()
-            headers = [("Authorization", f"Basic {decoded}")]
-            result = await c.get("/username", headers=headers)
-            self.assertEqual(user_name, (await result.data).decode("utf-8"))
-
-    @pytest.mark.asyncio
-    async def test_login_invalid_user_with_header(self):
-        user_id = 9000
-        user_name = "Anonymous"
-        self.login_manager._request_callback = None
-        async with self.app.test_client() as c:
-            decoded = base64.b64encode(str(user_id).encode()).decode()
-            headers = [("Authorization", f"Basic {decoded}")]
-            result = await c.get("/username", headers=headers)
-            self.assertEqual(user_name, (await result.data).decode("utf-8"))
 
     @pytest.mark.asyncio
     async def test_login_user_with_request(self):
@@ -961,19 +920,7 @@ class LoginTestCase(unittest.IsolatedAsyncioTestCase):
                 await c.get("/username")
                 listener.assert_heard_one(self.app, user=notch)
 
-    @pytest.mark.asyncio
-    async def test_user_loaded_from_header_fired(self):
-        user_id = 1
-        user_name = USERS[user_id].name
-        self.login_manager._request_callback = None
-        async with self.app.test_client() as c:
-            with listen_to(user_loaded_from_header) as listener:
-                decoded = base64.b64encode(str(user_id).encode()).decode()
-                headers = [("Authorization", f"Basic {decoded}")]
-                result = await c.get("/username", headers=headers)
-                self.assertEqual(user_name, (await result.data).decode("utf-8"))
-                listener.assert_heard_one(self.app, user=USERS[user_id])
-
+    
     @pytest.mark.asyncio
     async def test_user_loaded_from_request_fired(self):
         user_id = 1
