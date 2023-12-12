@@ -10,6 +10,7 @@ from quart import (
     current_app,
     redirect,
     session,
+    g
 )
 
 import quart_flask_patch  # must be the first import to use flask extensions with quart
