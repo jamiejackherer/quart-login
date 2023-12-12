@@ -5,10 +5,9 @@ from urllib.parse import urlparse
 from urllib.parse import urlunparse
 
 from quart import current_app
-from quart.globals import _request_context 
+from quart.globals import _request_context, _websocket_context
 from quart import has_request_context
 from quart import request
-from quart.globals import _websocket_context
 from quart import has_websocket_context
 from quart import websocket
 from quart import session
