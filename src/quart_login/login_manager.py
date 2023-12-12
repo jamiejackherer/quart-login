@@ -10,9 +10,7 @@ from quart import (
     current_app,
     redirect,
     session,
-    request
 )
-from quart.globals import request_ctx, websocket_ctx
 
 import quart_flask_patch  # must be the first import to use flask extensions with quart
 from flask import flash
@@ -191,6 +189,7 @@ class LoginManager:
             redirect_url = make_login_url(login_view, next_url=request.url)
 
         return redirect(redirect_url)
+
 
     def user_loader(self, callback):
         """
